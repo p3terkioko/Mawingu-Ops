@@ -100,6 +100,52 @@ async function getLatestOnsetValidation(location) {
 }
 
 /**
+ * Anticipatory escalation status for a location, from the latest two alert rows.
+ *
+ * This is the same week-over-week worsening signal the SMS broadcast uses
+ * (pipeline/broadcast_advisory.py), exposed to the pull channels (USSD menu,
+ * dashboard) so a farmer who never subscribed still sees it by dialling in.
+ *
+ * @param {string} location
+ * @returns {Promise<{active:boolean, escalated:boolean, triggerCategory:string|null,
+ *   previousCategory:string|null, alertLevel:string|null, spi:number|null}>}
+ */
+async function getEscalationStatus(location) {
+  const RANK = { none: 0, mild: 1, moderate: 2, severe: 3, extreme: 4 };
+  const result = await query(
+    `SELECT alert_level, trigger_category, spi, computed_at
+     FROM alert_levels
+     WHERE location = $1
+     ORDER BY computed_at DESC
+     LIMIT 2`,
+    [location]
+  );
+  const rows = result.rows;
+  if (rows.length === 0) {
+    return {
+      active: false, escalated: false, triggerCategory: null,
+      previousCategory: null, alertLevel: null, spi: null,
+    };
+  }
+  const current = rows[0];
+  const previous = rows[1] || null;
+  const curRank = RANK[current.trigger_category] ?? 0;
+  const prevRank = previous ? RANK[previous.trigger_category] ?? 0 : null;
+  const escalated = prevRank !== null && curRank > prevRank;
+  // Surface on the menu when it is anticipatory-relevant: a moderate-or-worse
+  // trigger, or any week-over-week worsening (even mild -> moderate).
+  const active = curRank >= 2 || escalated;
+  return {
+    active,
+    escalated,
+    triggerCategory: current.trigger_category || null,
+    previousCategory: previous ? previous.trigger_category || null : null,
+    alertLevel: current.alert_level || null,
+    spi: current.spi != null ? Number(current.spi) : null,
+  };
+}
+
+/**
  * Record that an advisory was delivered to a farmer.
  * @param {string} phoneNumber
  * @param {string} channel       e.g. 'ussd'
@@ -122,5 +168,6 @@ module.exports = {
   getLatestRecommendation,
   getLatestAlert,
   getLatestOnsetValidation,
+  getEscalationStatus,
   logAdvisoryDelivery,
 };

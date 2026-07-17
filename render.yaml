@@ -1,0 +1,62 @@
+# MawinguOps — Render Blueprint.
+# Provisions everything a judge needs to reach with zero local setup:
+#   1. a managed PostgreSQL database,
+#   2. the Node USSD API (Docker), and
+#   3. the React dashboard as a static site pointed at the live API.
+#
+# Deploy: push this repo to GitHub, then in Render → "New" → "Blueprint" and
+# select the repo. Render reads this file and creates all three. After the first
+# deploy, seed the demo scenarios once (see DEPLOY.md):
+#   Render dashboard → mawinguops-api → Shell → `cd api && npm run seed:demo`
+#
+# Secrets NOT in this file (set them in the Render dashboard, per service):
+#   mawinguops-api: GROQ_API_KEY, AT_API_KEY, AT_USERNAME, ADMIN_TOKEN
+# DATABASE_URL is wired automatically from the database below.
+
+databases:
+  - name: mawinguops-db
+    databaseName: mawinguops
+    plan: free
+
+services:
+  # --- USSD / status API -----------------------------------------------------
+  - type: web
+    name: mawinguops-api
+    runtime: docker
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mawinguops-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: BROADCAST_DRY_RUN
+        value: "true" # SMS/email stay in demo (dry-run) unless real keys are set
+      - key: GROQ_API_KEY
+        sync: false # set in dashboard (used only by the weekly pipeline, not the API)
+      - key: AT_API_KEY
+        sync: false
+      - key: AT_USERNAME
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+
+  # --- Dashboard (static) ----------------------------------------------------
+  - type: web
+    name: mawinguops-dashboard
+    runtime: static
+    rootDir: dashboard
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      # Baked in at build time; point the dashboard at the deployed API.
+      - key: VITE_API_BASE
+        value: https://mawinguops-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

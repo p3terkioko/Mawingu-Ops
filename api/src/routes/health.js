@@ -14,9 +14,9 @@ const {
   getLatestAlert,
   getLatestOnsetValidation,
 } = require('../services/advisory');
+const demoService = require('../services/demo');
 
 const router = express.Router();
-const LOCATION = 'machakos';
 
 // GET /health
 router.get('/health', async (req, res) => {
@@ -36,14 +36,19 @@ router.get('/health', async (req, res) => {
 });
 
 // GET /api/status — consumed by the React dashboard.
+// An optional ?demo=plant_now|wait|do_not_plant reads a seeded in-season
+// scenario instead of production 'machakos', so the dashboard farmer-mirror can
+// show the full decision path off-season. Absent/unknown -> production.
 router.get('/api/status', async (req, res) => {
+  const location = demoService.resolveLocation(req.query.demo);
+  const demo = demoService.normaliseScenario(req.query.demo) || null;
   try {
     const [alert, recommendation, swAdvisory, enAdvisory, onset] = await Promise.all([
-      getLatestAlert(LOCATION),
-      getLatestRecommendation(LOCATION),
-      getLatestAdvisory(LOCATION, 'sw'),
-      getLatestAdvisory(LOCATION, 'en'),
-      getLatestOnsetValidation(LOCATION),
+      getLatestAlert(location),
+      getLatestRecommendation(location),
+      getLatestAdvisory(location, 'sw'),
+      getLatestAdvisory(location, 'en'),
+      getLatestOnsetValidation(location),
     ]);
 
     // Recent rainfall actuals + matching baseline for the chart (last 30 days).
@@ -53,13 +58,13 @@ router.get('/api/status', async (req, res) => {
        WHERE location = $1
        ORDER BY date DESC
        LIMIT 30`,
-      [LOCATION]
+      [location]
     );
     const baseline = await query(
       `SELECT day_of_year, mean_rainfall_mm
        FROM rainfall_baseline
        WHERE location = $1`,
-      [LOCATION]
+      [location]
     );
 
     // Freshness: the most recent actual and where it came from.
@@ -69,7 +74,7 @@ router.get('/api/status', async (req, res) => {
        WHERE location = $1
        ORDER BY date DESC
        LIMIT 1`,
-      [LOCATION]
+      [location]
     );
     const dataAsOf = dataAsOfRow.rows[0] || null;
     const baselineByDoy = new Map(
@@ -100,7 +105,8 @@ router.get('/api/status', async (req, res) => {
       : null;
 
     res.json({
-      location: LOCATION,
+      location,
+      demo,
       alert: alert
         ? {
             level: alert.alert_level,

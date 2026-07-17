@@ -25,6 +25,11 @@ from dotenv import load_dotenv
 
 from season import season_phase
 
+# ml/ is a sibling of pipeline/; import the SAME rule the training labels came
+# from so we can guard against the model ever contradicting it (see main()).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ml"))
+from labels import label_row  # noqa: E402
+
 load_dotenv()
 
 LOCATION = "machakos"
@@ -281,13 +286,38 @@ def main():
 
         pred = model.predict(x)[0]
         proba = model.predict_proba(x)[0]
-        # confidence_score is DECIMAL(4,2) (max 99.99), so cap a perfect 1.0.
-        confidence = min(float(np.max(proba)) * 100.0, 99.99)
 
+        model_rec = encoder.inverse_transform([pred])[0] if encoder is not None else str(pred)
+
+        # Map each class label -> its predicted probability, so the stored
+        # confidence tracks whichever label we end up trusting below.
         if encoder is not None:
-            recommendation = encoder.inverse_transform([pred])[0]
+            class_labels = list(encoder.inverse_transform(model.classes_))
         else:
-            recommendation = str(pred)
+            class_labels = list(model.classes_)
+        proba_by_label = {label: float(p) for label, p in zip(class_labels, proba)}
+
+        # --- Circular-model guard --------------------------------------------
+        # The model is trained on labels that ml/labels.py derives from the FAO
+        # thresholds, so it must never *visibly* contradict that rule in a live
+        # demo. Recompute the transparent rule for these exact features; if the
+        # model diverges, trust the rule and log it. This keeps the explainable
+        # decision (advisory_facts.py builds the REASON from the same thresholds)
+        # and the model's decision from ever pointing in opposite directions.
+        rule_rec = label_row(features)
+        if model_rec != rule_rec:
+            log(
+                f"NOTE: model predicted {model_rec} but the FAO rule (ml/labels.py) "
+                f"gives {rule_rec} for these features — using the rule for consistency"
+            )
+            recommendation = rule_rec
+        else:
+            recommendation = model_rec
+
+        # confidence_score is DECIMAL(4,2) (max 99.99), so cap a perfect 1.0.
+        confidence = min(
+            proba_by_label.get(recommendation, float(np.max(proba))) * 100.0, 99.99
+        )
 
         if phase == "off_season":
             log(

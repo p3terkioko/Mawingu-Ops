@@ -24,12 +24,18 @@ const farmerService = require('../services/farmer');
 const sessionService = require('../services/session');
 const advisoryService = require('../services/advisory');
 const subscriptionService = require('../services/subscriptions');
+const demoService = require('../services/demo');
 
 const router = express.Router();
-const LOCATION = 'machakos';
 
 // Africa's Talking hard limit per USSD page.
 const MAX_USSD_LENGTH = 182;
+
+// Localized drought-trigger words for the menu banner.
+const TRIGGER_WORD = {
+  sw: { mild: 'kidogo', moderate: 'wastani', severe: 'kali', extreme: 'kali sana' },
+  en: { mild: 'mild', moderate: 'moderate', severe: 'severe', extreme: 'extreme' },
+};
 
 // Localized header word for the planting decision. Off-season the raw model
 // recommendation (e.g. WAIT) is NOT shown — there is no live decision; the
@@ -58,12 +64,47 @@ function clamp(message) {
   return message.slice(0, MAX_USSD_LENGTH);
 }
 
-/** Main menu text in the farmer's language. */
-function mainMenu(language) {
+/** Main menu text in the farmer's language, with an optional drought banner. */
+function mainMenu(language, banner = '') {
+  const head = banner ? `${banner}\n` : '';
   if (language === 'en') {
-    return 'CON MawinguOps - Machakos\n1. Weather Alert\n2. Planting Advisory\n3. Subscribe to SMS Alerts\n0. Exit';
+    return `CON ${head}MawinguOps - Machakos\n1. Weather Alert\n2. Planting Advisory\n3. Subscribe to SMS Alerts\n0. Exit`;
   }
-  return 'CON MawinguOps - Machakos\n1. Hali ya Hewa\n2. Ushauri wa Kupanda\n3. Jiunge na Arifa za SMS\n0. Toka';
+  return `CON ${head}MawinguOps - Machakos\n1. Hali ya Hewa\n2. Ushauri wa Kupanda\n3. Jiunge na Arifa za SMS\n0. Toka`;
+}
+
+/**
+ * Short anticipatory drought banner for the top of the main menu, so the
+ * escalation signal reaches a farmer who never subscribed to SMS. Returns ''
+ * when conditions are calm (no moderate+ trigger and no worsening) — the menu
+ * then renders exactly as before.
+ */
+function alertBanner(language, esc) {
+  if (!esc || !esc.active) return '';
+  const words = TRIGGER_WORD[language] || TRIGGER_WORD.sw;
+  const cat = words[esc.triggerCategory] || esc.triggerCategory || '';
+  if (esc.escalated) {
+    return language === 'en'
+      ? `! DROUGHT WORSENING (${cat})`
+      : `! UKAME UNAZIDI (${cat})`;
+  }
+  return language === 'en'
+    ? `! DROUGHT ALERT (${cat})`
+    : `! TAHADHARI YA UKAME (${cat})`;
+}
+
+/**
+ * Build the main menu for a location, including the drought banner when active.
+ * The banner is best-effort: a failure to read it never blocks the menu.
+ */
+async function menuFor(location, language) {
+  let esc = null;
+  try {
+    esc = await advisoryService.getEscalationStatus(location);
+  } catch (err) {
+    console.error('[ussd] escalation status failed:', err.message);
+  }
+  return mainMenu(language, alertBanner(language, esc));
 }
 
 /**
@@ -172,7 +213,12 @@ router.post('/ussd', async (req, res) => {
 
     // ---- First dial: no session yet -------------------------------------
     if (!session) {
-      session = await sessionService.createSession(sessionId, phoneNumber);
+      // A demo/judge harness may pass `demo=plant_now|wait|do_not_plant` on the
+      // first request; it is persisted for the whole session (real farmers send
+      // nothing and stay on production 'machakos').
+      const demoScenario = demoService.normaliseScenario(req.body && req.body.demo);
+      session = await sessionService.createSession(sessionId, phoneNumber, demoScenario);
+      const location = demoService.resolveLocation(demoScenario);
 
       // Decide new vs returning based on whether the farmer already existed,
       // then create the row so onboarding steps have something to update.
@@ -185,10 +231,13 @@ router.post('/ussd', async (req, res) => {
       }
 
       await sessionService.updateSessionState(sessionId, 'MAIN_MENU');
-      return reply(res, mainMenu(farmer.language));
+      return reply(res, await menuFor(location, farmer.language));
     }
 
     const input = latestInput(text);
+    // Location to read from: the session's persisted demo scenario, or
+    // production 'machakos'. Set once per request; every read below uses it.
+    const location = demoService.resolveLocation(session.demo_scenario);
 
     // ---- LANGUAGE_SELECT -------------------------------------------------
     if (session.state === 'LANGUAGE_SELECT') {
@@ -209,7 +258,7 @@ router.post('/ussd', async (req, res) => {
       }
       await sessionService.updateSessionState(sessionId, 'MAIN_MENU');
       const farmer = await farmerService.findOrCreateFarmer(phoneNumber);
-      return reply(res, mainMenu(farmer.language));
+      return reply(res, await menuFor(location, farmer.language));
     }
 
     // ---- MAIN_MENU -------------------------------------------------------
@@ -219,7 +268,7 @@ router.post('/ussd', async (req, res) => {
 
       // Selection 1: Weather alert
       if (input === '1') {
-        const advisory = await advisoryService.getLatestAdvisory(LOCATION, language);
+        const advisory = await advisoryService.getLatestAdvisory(location, language);
         if (!advisory) {
           await sessionService.deleteSession(sessionId);
           return reply(
@@ -244,8 +293,8 @@ router.post('/ussd', async (req, res) => {
       // Selection 2: Planting advisory
       if (input === '2') {
         const [recommendation, advisory] = await Promise.all([
-          advisoryService.getLatestRecommendation(LOCATION),
-          advisoryService.getLatestAdvisory(LOCATION, language),
+          advisoryService.getLatestRecommendation(location),
+          advisoryService.getLatestAdvisory(location, language),
         ]);
         if (!recommendation || !advisory) {
           await sessionService.deleteSession(sessionId);
@@ -292,7 +341,7 @@ router.post('/ussd', async (req, res) => {
       }
 
       // Unrecognised selection — re-show the menu.
-      return reply(res, mainMenu(language));
+      return reply(res, await menuFor(location, language));
     }
 
     // ---- Pagination: next page of an advisory/alert ----------------------
@@ -306,12 +355,12 @@ router.post('/ussd', async (req, res) => {
       // Rebuild the document (pipeline output is stable within a session).
       let pages;
       if (kind === 'ALERT') {
-        const advisory = await advisoryService.getLatestAdvisory(LOCATION, language);
+        const advisory = await advisoryService.getLatestAdvisory(location, language);
         pages = advisory ? paginate(alertDocument(language, advisory), language) : null;
       } else {
         const [recommendation, advisory] = await Promise.all([
-          advisoryService.getLatestRecommendation(LOCATION),
-          advisoryService.getLatestAdvisory(LOCATION, language),
+          advisoryService.getLatestRecommendation(location),
+          advisoryService.getLatestAdvisory(location, language),
         ]);
         pages =
           recommendation && advisory
@@ -321,7 +370,7 @@ router.post('/ussd', async (req, res) => {
 
       if (!pages || index >= pages.length) {
         await sessionService.updateSessionState(sessionId, 'MAIN_MENU');
-        return reply(res, mainMenu(language));
+        return reply(res, await menuFor(location, language));
       }
       return reply(res, await renderPage(sessionId, kind, pages, index, language));
     }
@@ -331,7 +380,7 @@ router.post('/ussd', async (req, res) => {
       const farmer = await farmerService.findOrCreateFarmer(phoneNumber);
       if (input === '0') {
         await sessionService.updateSessionState(sessionId, 'MAIN_MENU');
-        return reply(res, mainMenu(farmer.language));
+        return reply(res, await menuFor(location, farmer.language));
       }
       await sessionService.deleteSession(sessionId);
       return reply(
@@ -358,7 +407,7 @@ router.post('/ussd', async (req, res) => {
       }
       // Anything else: back to the menu.
       await sessionService.updateSessionState(sessionId, 'MAIN_MENU');
-      return reply(res, mainMenu(language));
+      return reply(res, await menuFor(location, language));
     }
 
     // ---- Unknown state: reset -------------------------------------------

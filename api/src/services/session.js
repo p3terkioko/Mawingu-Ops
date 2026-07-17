@@ -24,15 +24,18 @@ async function getSession(sessionId) {
  * already exists (retried webhook), the existing row is returned untouched.
  * @param {string} sessionId
  * @param {string} phoneNumber
+ * @param {string} [demoScenario]  optional demo selector persisted for the
+ *   whole session so an off-season walkthrough stays in the same in-season
+ *   scenario (see services/demo.js). Empty/absent for real farmers.
  * @returns {Promise<object>}
  */
-async function createSession(sessionId, phoneNumber) {
+async function createSession(sessionId, phoneNumber, demoScenario = '') {
   const result = await query(
-    `INSERT INTO ussd_sessions (session_id, phone_number, state)
-     VALUES ($1, $2, 'INITIAL')
+    `INSERT INTO ussd_sessions (session_id, phone_number, state, demo_scenario)
+     VALUES ($1, $2, 'INITIAL', $3)
      ON CONFLICT (session_id) DO UPDATE SET updated_at = NOW()
      RETURNING *`,
-    [sessionId, phoneNumber]
+    [sessionId, phoneNumber, demoScenario || null]
   );
   return result.rows[0];
 }

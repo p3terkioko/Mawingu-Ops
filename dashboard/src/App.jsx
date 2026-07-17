@@ -12,6 +12,12 @@ import AdminPanel from './components/AdminPanel.jsx';
 // Relative URLs are proxied to the Node API by Vite (see vite.config.js).
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
+// Optional demo scenario from the URL (?demo=plant_now|wait|do_not_plant). Lets
+// a judge/demo walkthrough show the full plant/wait/don't-plant decision path
+// off-season, without changing what a real farmer sees. Absent -> production.
+const DEMO = new URLSearchParams(window.location.search).get('demo') || '';
+const STATUS_URL = `${API_BASE}/api/status${DEMO ? `?demo=${encodeURIComponent(DEMO)}` : ''}`;
+
 // Views are addressed by hash so no router dependency is needed:
 //   #/ or none -> farmer view (default), #analytics -> judge/analytics view,
 //   #admin -> ops console.
@@ -86,7 +92,7 @@ export default function App() {
       try {
         const [healthRes, statusRes] = await Promise.all([
           axios.get(`${API_BASE}/health`),
-          axios.get(`${API_BASE}/api/status`),
+          axios.get(STATUS_URL),
         ]);
         setHealth(healthRes.data);
         setStatus(statusRes.data);
@@ -135,6 +141,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 max-w-5xl mx-auto">
+      {status?.demo && (
+        <div className="mb-4 rounded-lg bg-amber-100 text-amber-800 text-sm px-4 py-2 text-center">
+          Demo scenario: <span className="font-semibold">{status.demo.replace(/_/g, ' ')}</span> —
+          seeded in-season data for the walkthrough. Real farmers on this date see the off-season advisory.
+        </div>
+      )}
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">MawinguOps</h1>
