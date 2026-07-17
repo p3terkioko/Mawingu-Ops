@@ -1,0 +1,286 @@
+# MawinguOps
+
+**USSD-based early warning and planting advisory for smallholder maize farmers in Machakos County, Kenya.**
+
+Hackathon submission — **IGAD Husika Hackathon 2026** (Early Warning & Early Action for climate resilience in the Horn of Africa).
+
+---
+
+## Problem
+
+A smallholder maize farmer in Machakos has one decision that makes or breaks the
+season: **"Should I plant now, wait, or not plant this season?"** Plant too early
+before reliable rains and the seed fails; plant too late and the crop misses the
+critical grain-filling window. Most farmers have no access to climate forecasts
+in a language and channel they can use.
+
+MawinguOps answers that single question over plain **USSD** (no smartphone, no
+data bundle required), in **Swahili**, by combining satellite rainfall history,
+a 14-day forecast, a trained ML model, and a plain-language advisory.
+
+---
+
+## How it works
+
+```
+                         WEEKLY CRON PIPELINE (writes to Postgres)
+  ┌─────────────┐   ┌──────────────┐   ┌────────────────┐   ┌───────────┐   ┌──────────────────┐
+  │ CHIRPS via  │   │ Open-Meteo   │   │ compute_anomaly│   │ run_model │   │ generate_advisory│
+  │ Earth Engine│──▶│ 14-day fcst  │──▶│  alert level   │──▶│ RandomFor.│──▶│  Llama via Groq  │
+  └─────────────┘   └──────────────┘   └────────────────┘   └───────────┘   └──────────────────┘
+        │                  │                   │                  │                   │
+        ▼                  ▼                   ▼                  ▼                   ▼
+  rainfall_actuals    forecasts          alert_levels    planting_recommend.     advisories
+  rainfall_baseline
+                                   ┌──────────────────────────┐
+                                   │       PostgreSQL          │
+                                   └────────────┬─────────────┘
+                                                │ (reads only)
+                ┌───────────────────────────────┼───────────────────────────────┐
+                ▼                                                                ▼
+        ┌───────────────┐                                              ┌──────────────────┐
+        │ Node USSD API │◀──── Africa's Talking ◀──── *384# ◀── Farmer │ React dashboard  │
+        │  POST /ussd   │                                              │  (demo / judges) │
+        └───────────────┘                                              └──────────────────┘
+```
+
+The **USSD handler never runs ML inference or calls the LLM live** — it only reads
+pre-computed rows. All the heavy lifting happens once a week in the pipeline, so
+USSD sessions stay fast and cheap, and the weekly advisory is stable.
+
+### Drought signal — SPI + anticipatory-action triggers
+
+The drought signal is the **SPI (Standardized Precipitation Index)** over the
+trailing 30-day rainfall accumulation — the same index **ICPAC's East Africa
+Drought Watch** uses (see *ICPAC alignment* below). SPI is derived from a gamma
+distribution fitted per day-of-year to the historical CHIRPS archive
+(`calibrate_spi.py`), so it accounts for how variable rainfall actually is at
+that time of year — unlike a raw ratio.
+
+```
+H(x) = zero_prob + (1 - zero_prob) * GammaCDF(x; shape, scale)
+SPI  = Phi^-1(H(x))
+```
+
+SPI maps to an ICPAC-style anticipatory-action trigger and the farmer-facing alert:
+
+| SPI            | Trigger    | Alert    | Meaning                       |
+|----------------|------------|----------|-------------------------------|
+| > −0.5         | `none`     | `GREEN`  | Normal, no action needed      |
+| −1.0 … −0.5    | `mild`     | `YELLOW` | Watch, mildly below normal    |
+| −1.5 … −1.0    | `moderate` | `ORANGE` | Moderate drought trigger      |
+| −2.0 … −1.5    | `severe`   | `RED`    | Severe drought trigger        |
+| ≤ −2.0         | `extreme`  | `RED`    | Extreme drought trigger       |
+
+The legacy `anomaly_pct = (current_30d / baseline_30d) * 100` is still computed
+and stored for continuity (and as a fallback classifier if SPI isn't calibrated).
+
+**Drought Watch parity (SPI-1).** Alongside the trailing-30-day SPI, MawinguOps
+computes a **calendar-month SPI-1** with ICPAC Drought Watch's exact method
+(gamma fit of full-month CHIRPS totals). The reference period is configurable
+(`SPI_REF_START_YEAR`/`SPI_REF_END_YEAR`) so it matches Drought Watch's
+**1981–2010** reference once the full CHIRPS archive is loaded. Both values are
+stored and shown on the dashboard.
+
+### Growing-season onset validation
+
+ICPAC publishes growing-season **onset** dates in its Data Library — in effect
+the official answer to "has the planting window opened?". `validate_onset.py`
+detects this season's onset from CHIRPS with a standard agronomic criterion
+(≥20mm over 3 days, no false-start dry spell), compares it to the long-term
+CHIRPS climatology (or ICPAC's official onset via `ICPAC_ONSET_URL` when
+configured), and reports whether the planting recommendation **agrees with**, is
+**more conservative than**, or **diverges from** the onset signal — an
+independent, ICPAC-aligned credibility check surfaced on the dashboard.
+
+### Recommendations (Random Forest, FAO-threshold labels)
+
+`PLANT_NOW` · `WAIT` · `DO_NOT_PLANT`, with a confidence score.
+
+### ICPAC alignment
+
+MawinguOps deliberately aligns with the systems of **ICPAC** (the hackathon
+organizer) so its outputs are comparable to official regional products:
+
+- **Drought Watch** ([droughtwatch.icpac.net](https://droughtwatch.icpac.net/)) monitors East Africa drought from **CHIRPS** using the **SPI** — MawinguOps uses the **same dataset and the same index**, and computes a calendar-month **SPI-1** with Drought Watch's method for direct parity.
+- **Thresholds & Triggers** ([eatriggersthresholds.icpac.net](https://eatriggersthresholds.icpac.net/)) frames drought response as pre-agreed, subnational triggers for **anticipatory action** — MawinguOps emits the same `moderate / severe / extreme` trigger categories and turns each into early *action* (plant / wait / don't).
+- **HUSIKA** ([husika.icpac.net](https://husika.icpac.net/)) is ICPAC's early-warning communication platform — MawinguOps extends that last mile to **basic phones over USSD**, with no smartphone or data required.
+- **ICPAC Data Library** ([digilib.icpac.net](http://digilib.icpac.net/)) — growing-season **onset/cessation** dates + SPI. MawinguOps validates its planting signal against the season onset (`validate_onset.py`).
+- **ICPAC Geoportal** ([geoportal.icpac.net](https://geoportal.icpac.net/)) — live **WMS** layers (maize area, growing-season windows, drought hazard, admin boundaries) rendered as regional context on the dashboard.
+
+---
+
+## Repository layout
+
+```
+mawinguops/
+├── api/         Node.js USSD API (Express + pg + Africa's Talking)
+├── ml/          Model training/evaluation (scikit-learn) + features/labels
+├── pipeline/    Weekly data pipeline (CHIRPS, Open-Meteo, anomaly+SPI/SPI-1,
+│                model, onset validation, advisory)
+├── notebook/    Colab notebook to train the model end-to-end
+└── dashboard/   React (Vite) demo dashboard (incl. ICPAC WMS map + onset card)
+```
+
+---
+
+## Prerequisites
+
+- **Node.js 20+**
+- **Python 3.11+**
+- **PostgreSQL 14+**
+- **WSL** if you are on Windows (this project was built and tested in WSL)
+- A **Google Cloud project** with the Earth Engine API enabled (for CHIRPS)
+- A **Groq API key** (Llama advisory text) and **Africa's Talking** account (USSD)
+
+> **WSL note:** install Python dependencies *inside WSL*, not Windows, and keep
+> the virtualenv on the WSL filesystem (e.g. `~/mawinguops/.venv`), not on a
+> mounted `/mnt/c` drive — that is dramatically faster.
+
+---
+
+## Setup
+
+### 1. Clone and configure
+
+```bash
+git clone <your-repo-url> mawinguops
+cd mawinguops
+cp .env.example .env
+# Edit .env with your real DATABASE_URL, AT_*, and GROQ_API_KEY values.
+```
+
+> **Port note:** some WSL PostgreSQL installs listen on a non-default port
+> (check with `pg_lsclusters`). If yours is on `5433`, set
+> `DATABASE_URL=postgresql://postgres:password@localhost:5433/mawinguops`.
+
+### 2. Create the database and run the migration
+
+```bash
+createdb mawinguops
+# Apply all migrations in order (001_init, 002_spi_triggers, 003_onset_validation,
+# 004_spi_monthly, 005_crop).
+for f in api/src/db/migrations/*.sql; do psql -d mawinguops -f "$f"; done
+```
+
+### 3. Install Node dependencies
+
+```bash
+cd api && npm install && cd ..
+```
+
+### 4. Install Python dependencies (inside WSL)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r pipeline/requirements.txt
+pip install -r ml/requirements.txt
+```
+
+### 5. Train the model (Google Colab)
+
+1. Upload `notebook/mawinguops_training.ipynb` to [Google Colab](https://colab.research.google.com/).
+2. Set your Google Cloud project ID in the Earth Engine cell.
+3. Run all cells. This fetches CHIRPS, engineers features, trains the Random
+   Forest, and produces downloads.
+4. Download `planting_model.pkl`, `label_encoder.pkl`, `feature_importance.json`
+   and place them in **`ml/models/`**.
+5. Download `chirps_machakos.csv`, `baseline_machakos.csv` and place them in
+   **`pipeline/data/`**.
+
+> You can alternatively train locally once you have `pipeline/data/chirps_machakos.csv`:
+> `cd ml && python train.py`.
+
+### 6. Populate the database (run the pipeline once)
+
+```bash
+# Authenticate Earth Engine once (interactive):
+earthengine authenticate
+export EE_PROJECT=your-google-cloud-project-id
+
+cd pipeline && bash run_pipeline.sh
+```
+
+### 7. Start the API
+
+```bash
+cd api && npm start
+# -> [api] MawinguOps API listening on port 3000
+```
+
+Check it: `curl http://localhost:3000/health`
+
+### 8. Schedule the weekly pipeline (WSL cron)
+
+WSL does not auto-start cron. Start it, then install the job:
+
+```bash
+sudo service cron start
+crontab -e
+# Add (Mondays 06:00):
+0 6 * * 1 /home/<you>/mawinguops/pipeline/run_pipeline.sh >> /var/log/mawinguops_pipeline.log 2>&1
+```
+
+---
+
+## USSD testing (Africa's Talking sandbox)
+
+1. Log into the [Africa's Talking sandbox](https://account.africastalking.com/).
+2. Create a USSD channel (e.g. `*384#`) and point its callback URL at your API's
+   `POST /ussd` endpoint. Expose your local server with a tunnel (e.g. `ngrok http 3000`)
+   and use `https://<tunnel>/ussd`.
+3. Use the sandbox **simulator** to dial the code and walk the menus:
+   - First-time caller: language → name → main menu.
+   - `1` Weather Alert · `2` Planting Advisory · `0` Exit.
+
+You can also test the webhook directly:
+
+```bash
+curl -X POST http://localhost:3000/ussd \
+  -d 'sessionId=test1&phoneNumber=+254700000000&serviceCode=*384#&text='
+```
+
+---
+
+## Dashboard (demo)
+
+```bash
+cd dashboard
+npm install
+npm run dev
+# -> http://localhost:5173  (proxies /health and /api to the API on :3000)
+```
+
+The dashboard reads `GET /api/status` and renders the alert badge, the
+recommendation card, and an actual-vs-baseline rainfall chart. It is for the
+demo video and judges only.
+
+---
+
+## Data sources & attribution
+
+- **CHIRPS** — Climate Hazards Group InfraRed Precipitation with Station data
+  (`UCSB-CHC/CHIRPS/V3/DAILY_SAT`), accessed via Google Earth Engine.
+- **Open-Meteo** — free 14-day precipitation forecast API (no key required).
+- **FAO Irrigation and Drainage Paper 56** — maize water-requirement thresholds
+  used to derive training labels.
+- **Llama (via Groq)** — plain-language Swahili/English advisory text.
+- **Africa's Talking** — USSD delivery channel.
+- **ICPAC Geoportal** — live WMS layers (`geoportal.icpac.net/geoserver/ows`):
+  Kenya maize area, growing-season windows, drought hazard, admin boundaries.
+- **ICPAC Data Library** ([digilib.icpac.net](http://digilib.icpac.net/)) — growing-season onset reference for `validate_onset.py`.
+- **OpenStreetMap** — basemap tiles for the dashboard map.
+
+> Training labels are derived **programmatically from agronomic thresholds, not
+> from observed yield data**. The model produces an agronomically-grounded,
+> stable weekly signal — not a yield prediction.
+
+---
+
+## Hackathon submission
+
+- **Event:** IGAD Husika Hackathon 2026
+- **Theme:** Early Warning & Early Action for climate resilience in the Horn of Africa
+- **Location focus:** Machakos County, Kenya (maize, bimodal MAM/OND rainfall)
+- **Channel:** USSD (`*384#`) for maximum reach on basic phones
