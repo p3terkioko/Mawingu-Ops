@@ -7,10 +7,7 @@ import React from 'react';
  */
 export default function Card({ as: Tag = 'div', className = '', children, ...rest }) {
   return (
-    <Tag
-      className={`rounded-card border border-border bg-surface-1 shadow-card ${className}`}
-      {...rest}
-    >
+    <Tag className={`rounded-card bg-surface-1 shadow-card ${className}`} {...rest}>
       {children}
     </Tag>
   );

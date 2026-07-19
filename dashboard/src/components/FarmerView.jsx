@@ -40,53 +40,61 @@ export default function FarmerView({ status, language, onLanguageChange }) {
   const advisoryText = status?.advisory?.[language] || status?.advisory?.sw;
 
   return (
-    <div data-theme="light" className="rounded-card bg-canvas p-4 sm:p-8 animate-fade-up">
-      <div className="mx-auto flex max-w-measure flex-col gap-6">
-        {/* Language toggle — the shared control, not a footnote. */}
-        <div className="flex flex-col items-center gap-2">
-          <span className="text-caption font-semibold uppercase tracking-wide text-muted">
-            {t.language}
-          </span>
-          <SegmentedControl
-            ariaLabel={t.language}
-            options={[
-              { value: 'sw', label: 'Kiswahili' },
-              { value: 'en', label: 'English' },
-            ]}
-            value={language}
-            onChange={onLanguageChange}
-          />
+    <div className="flex flex-col gap-6 animate-fade-up">
+      {/* Language toggle — the shared control, on the header row. */}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-caption font-semibold uppercase tracking-wide text-muted">
+          {t.language}
+        </span>
+        <SegmentedControl
+          ariaLabel={t.language}
+          options={[
+            { value: 'sw', label: 'Kiswahili' },
+            { value: 'en', label: 'English' },
+          ]}
+          value={language}
+          onChange={onLanguageChange}
+        />
+      </div>
+
+      <StatusHero tone={st.tone} eyebrow={t.heading} word={st.word} summary={st.summary} />
+
+      {/* Two columns so the page fills the width: advisory prose + USSD on the
+          left, subscribe on the right. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-6 lg:col-span-2">
+          <Card className="flex flex-col gap-4 p-6">
+            <p className="text-caption font-semibold uppercase tracking-wide text-muted">
+              {t.heading}
+            </p>
+            <p className="text-body-lg leading-relaxed text-primary">
+              {advisoryText || t.noAdvisory}
+            </p>
+            {!offSeason && rec?.confidence != null && (
+              <p className="text-small text-secondary">
+                {t.confidence}:{' '}
+                <span className="font-semibold text-primary">{Math.round(rec.confidence)}%</span>
+              </p>
+            )}
+          </Card>
+
+          {/* USSD hint. */}
+          <Card className="flex items-center gap-4 p-6">
+            <span className="flex h-12 w-12 flex-none items-center justify-center rounded-control bg-surface-2 text-accent">
+              <Icon name="advisory" size={24} />
+            </span>
+            <div>
+              <p className="text-caption font-semibold uppercase tracking-wide text-muted">
+                {t.ussdTitle}
+              </p>
+              <p className="text-body-lg text-primary">{t.ussd}</p>
+            </div>
+          </Card>
         </div>
 
-        <StatusHero tone={st.tone} eyebrow={t.heading} word={st.word} summary={st.summary} />
-
-        {/* Full advisory prose. */}
-        <Card className="flex flex-col gap-4 p-6">
-          <p className="text-body-lg leading-relaxed text-primary">
-            {advisoryText || t.noAdvisory}
-          </p>
-          {!offSeason && rec?.confidence != null && (
-            <p className="text-small text-secondary">
-              {t.confidence}:{' '}
-              <span className="font-semibold text-primary">{Math.round(rec.confidence)}%</span>
-            </p>
-          )}
-        </Card>
-
-        {/* USSD hint. */}
-        <Card className="flex items-center gap-4 p-6">
-          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-control bg-surface-2 text-accent">
-            <Icon name="advisory" size={22} />
-          </span>
-          <div>
-            <p className="text-caption font-semibold uppercase tracking-wide text-muted">
-              {t.ussdTitle}
-            </p>
-            <p className="text-body text-primary">{t.ussd}</p>
-          </div>
-        </Card>
-
-        <SubscribeForm language={language} />
+        <div className="lg:col-span-1">
+          <SubscribeForm language={language} />
+        </div>
       </div>
     </div>
   );

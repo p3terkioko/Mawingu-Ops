@@ -25,11 +25,21 @@ export default function StatusHero({ tone = 'accent', eyebrow, word, summary, me
 
   return (
     <section
-      className={`relative overflow-hidden rounded-card border border-border bg-surface-1 p-6 sm:p-8 ${className}`}
-      style={glow ? { boxShadow: `var(--shadow-card), 0 0 60px ${color}33` } : undefined}
+      className={`relative overflow-hidden rounded-card bg-surface-1 p-6 sm:p-8 ${className}`}
+      style={
+        glow
+          ? { boxShadow: `var(--shadow-card), 0 0 70px color-mix(in srgb, ${color} 26%, transparent)` }
+          : { boxShadow: 'var(--shadow-card)' }
+      }
     >
-      {/* Tint wash keyed to the status color. */}
-      <div className={`pointer-events-none absolute inset-0 ${c.bg}`} aria-hidden="true" />
+      {/* Gradient wash + soft light source keyed to the status color. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden="true"
+        style={{
+          background: `radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, ${color} 22%, transparent) 0%, transparent 55%)`,
+        }}
+      />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
           <span className={`mt-2 h-3 w-3 flex-none rounded-full ${c.dot}`} aria-hidden="true" />

@@ -9,11 +9,9 @@ import React from 'react';
  */
 const VARIANTS = {
   primary:
-    'bg-accent text-accent-contrast hover:bg-accent-hover active:bg-accent-press border border-transparent',
-  secondary:
-    'bg-transparent text-primary border border-strong hover:bg-surface-2',
-  destructive:
-    'bg-status-red text-white hover:opacity-90 border border-transparent',
+    'text-accent-contrast border border-transparent bg-gradient-to-b from-accent to-accent-press hover:from-accent-hover hover:to-accent shadow-[0_6px_18px_var(--accent-glow)]',
+  secondary: 'bg-surface-2 text-primary border border-strong hover:bg-surface-1',
+  destructive: 'bg-status-red text-white hover:opacity-90 border border-transparent',
 };
 
 export default function Button({

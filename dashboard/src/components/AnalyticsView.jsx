@@ -72,10 +72,14 @@ export default function AnalyticsView({ status, language = 'en' }) {
           value={spi != null ? `${spi > 0 ? '+' : ''}${spi.toFixed(2)}` : '—'}
           delta={
             spi != null
-              ? { text: spi >= 0 ? 'Above normal' : 'Below normal', tone: spi >= 0 ? 'up' : 'down' }
+              ? { text: spi >= 0 ? '▲ above' : '▼ below', tone: spi >= 0 ? 'up' : 'down' }
               : undefined
           }
-          caption={alert?.triggerCategory ? `${alert.triggerCategory} trigger` : 'standardised precipitation'}
+          caption={
+            alert?.triggerCategory && alert.triggerCategory !== 'none'
+              ? `${alert.triggerCategory} trigger · vs normal`
+              : 'Standardised precipitation vs normal'
+          }
           spark={cumulative(actualSeries)}
           sparkColor="var(--sky)"
         />
@@ -85,10 +89,7 @@ export default function AnalyticsView({ status, language = 'en' }) {
           unit={anomalyPct != null ? '%' : ''}
           delta={
             anomalyPct != null
-              ? {
-                  text: anomalyPct >= 100 ? 'Wetter than normal' : 'Drier than normal',
-                  tone: anomalyPct >= 100 ? 'up' : 'down',
-                }
+              ? { text: anomalyPct >= 100 ? '▲ wetter' : '▼ drier', tone: anomalyPct >= 100 ? 'up' : 'down' }
               : undefined
           }
           caption="vs climatological normal"
@@ -105,41 +106,38 @@ export default function AnalyticsView({ status, language = 'en' }) {
         />
       </div>
 
-      {/* Row 3 — rainfall chart + ICPAC context map */}
+      {/* Rows 3–4 — two balanced stacked columns so neither floats in dead
+          space: left (wider) rainfall chart + condensed advisory; right ICPAC
+          map + growing-season onset. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="flex flex-col gap-6 lg:col-span-2">
           <RainfallChart data={rainfall} spi={spi} anomalyPct={anomalyPct} />
-        </div>
-        <div className="lg:col-span-1">
-          <IcpacMap />
-        </div>
-      </div>
 
-      {/* Row 4 — condensed advisory + onset */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="flex flex-col gap-4 p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-caption font-semibold uppercase tracking-wide text-muted">
-                Advisory summary
-              </p>
-              <h2 className="mt-1 font-display text-card-title font-medium text-primary">
-                {st.word}
-              </h2>
+          <Card className="flex flex-col gap-4 p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-caption font-semibold uppercase tracking-wide text-muted">
+                  Advisory summary
+                </p>
+                <h2 className="mt-1 font-display text-card-title font-medium text-primary">
+                  {st.word}
+                </h2>
+              </div>
+              <Button variant="secondary" onClick={() => (window.location.hash = '#/')}>
+                Open full advisory
+                <Icon name="arrowRight" size={18} />
+              </Button>
             </div>
-          </div>
-          <p className="text-body text-secondary">
-            {advisorySummary || 'No advisory available yet.'}
-          </p>
-          <div>
-            <Button variant="secondary" onClick={() => (window.location.hash = '#/')}>
-              Open full advisory
-              <Icon name="arrowRight" size={18} />
-            </Button>
-          </div>
-        </Card>
+            <p className="text-body text-secondary">
+              {advisorySummary || 'No advisory available yet.'}
+            </p>
+          </Card>
+        </div>
 
-        <OnsetCard onset={status?.onset} />
+        <div className="flex flex-col gap-6 lg:col-span-1">
+          <IcpacMap />
+          <OnsetCard onset={status?.onset} />
+        </div>
       </div>
     </div>
   );

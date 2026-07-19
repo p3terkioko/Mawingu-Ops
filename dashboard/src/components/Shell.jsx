@@ -104,7 +104,7 @@ export default function Shell({
       <div className="mt-auto flex flex-col gap-3">
         {/* Region */}
         <div
-          className={`flex items-center gap-2 rounded-control border border-border bg-surface-1 px-3 py-2 text-small text-secondary ${
+          className={`flex items-center gap-2 rounded-control bg-surface-1 px-3 py-2 text-small text-secondary ${
             collapsed ? 'justify-center' : ''
           }`}
           title={collapsed ? region : undefined}
@@ -115,7 +115,7 @@ export default function Shell({
 
         {/* System health */}
         {!collapsed && (
-          <div className="rounded-control border border-border bg-surface-1 px-3 py-3 text-caption text-secondary">
+          <div className="rounded-control bg-surface-1 px-3 py-3 text-caption text-secondary">
             <p className="mb-2 font-semibold uppercase tracking-wide text-muted">System</p>
             <div className="flex flex-col gap-1.5">
               <span className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export default function Shell({
     <div className="min-h-screen bg-canvas">
       {/* Desktop sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-sunk lg:block ${
+        className={`fixed inset-y-0 left-0 z-30 hidden bg-sunk lg:block ${
           collapsed ? 'w-[72px]' : 'w-[240px]'
         }`}
       >
@@ -162,7 +162,7 @@ export default function Shell({
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          <aside className="absolute inset-y-0 left-0 w-[260px] border-r border-border bg-sunk">
+          <aside className="absolute inset-y-0 left-0 w-[260px] bg-sunk shadow-card">
             {SidebarInner}
           </aside>
         </div>
@@ -171,7 +171,7 @@ export default function Shell({
       {/* Main column */}
       <div className={`${collapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'}`}>
         {/* Top bar */}
-        <header className="sticky top-0 z-20 border-b border-border bg-canvas/85 backdrop-blur">
+        <header className="sticky top-0 z-20 bg-canvas/80 backdrop-blur-md">
           <div className="mx-auto flex max-w-content items-center gap-4 px-4 py-4 sm:px-6">
             <button
               type="button"

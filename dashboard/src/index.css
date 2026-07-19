@@ -11,13 +11,15 @@
  * or via var(--token) directly. No hardcoded hex in components.
  * ------------------------------------------------------------------ */
 :root {
-  /* Dark theme (Analytics, Admin) */
-  --bg-canvas: #0b0b12;
-  --bg-sunk: #08080e;
-  --surface-1: #15151f; /* cards */
-  --surface-2: #1c1c29; /* raised, hover, inputs */
-  --border: rgba(255, 255, 255, 0.07);
+  /* Dark theme (Analytics, Admin) — a warm twilight indigo. Cards separate
+     from the canvas by fill + soft shadow, not hard outlines. */
+  --bg-canvas: #100f1a;
+  --bg-sunk: #0a0912; /* sidebar / inset tracks */
+  --surface-1: #1b1a28; /* cards — a clear step up from the canvas */
+  --surface-2: #262536; /* raised, hover, inputs */
+  --border: rgba(255, 255, 255, 0.06); /* dividers / inputs only, not cards */
   --border-strong: rgba(255, 255, 255, 0.12);
+  --card-highlight: rgba(255, 255, 255, 0.05); /* inset top edge on cards */
 
   --accent: #7c5cff; /* violet primary */
   --accent-hover: #8f73ff;
@@ -30,7 +32,7 @@
 
   --text-primary: #f5f5fa;
   --text-secondary: #a6a6bc;
-  --text-muted: #6e6e85;
+  --text-muted: #7f7f97; /* raised for AA on small text over the dark canvas */
 
   /* Status (traffic light) */
   --status-green: #29c777;
@@ -58,40 +60,13 @@
   --space-8: 32px;
   --space-12: 48px;
 
-  /* Elevation. Glow is reserved for the status hero card only. */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
+  /* Elevation. A top-lit inset edge + soft drop gives cards a refined border
+     without an outline. Glow is reserved for the status hero card only. */
+  --shadow-card: inset 0 1px 0 0 var(--card-highlight), 0 2px 4px rgba(0, 0, 0, 0.28),
+    0 14px 34px rgba(0, 0, 0, 0.36);
 }
 
-[data-theme='light'] {
-  --bg-canvas: #f7f8fb;
-  --bg-sunk: #eef0f5;
-  --surface-1: #ffffff;
-  --surface-2: #f2f3f8;
-  --border: rgba(15, 17, 26, 0.08);
-  --border-strong: rgba(15, 17, 26, 0.16);
-
-  --accent: #6a46f0; /* darker for contrast on light */
-  --accent-hover: #5a38de;
-  --accent-press: #4e2fc4;
-  --accent-glow: rgba(106, 70, 240, 0.18);
-  --accent-contrast: #ffffff;
-
-  --text-primary: #14151f;
-  --text-secondary: #565672;
-  --text-muted: #86869b;
-
-  --status-green: #1aa55e;
-  --status-amber: #b8791a;
-  --status-red: #d53d4c;
-  --status-green-bg: rgba(26, 165, 94, 0.12);
-  --status-amber-bg: rgba(184, 121, 26, 0.12);
-  --status-red-bg: rgba(213, 61, 76, 0.12);
-
-  --chart-grid: rgba(15, 17, 26, 0.07);
-  --chart-normal: #94a3b8;
-
-  --shadow-card: 0 1px 2px rgba(15, 17, 26, 0.06), 0 8px 24px rgba(15, 17, 26, 0.06);
-}
+/* The app is dark-only by design — there is no light theme. */
 
 @layer base {
   html,
@@ -130,11 +105,14 @@
     border-radius: 4px;
   }
 
-  /* Leaflet controls should not punch through the dark UI. */
-  .leaflet-container {
-    background: var(--bg-sunk);
-    font-family: inherit;
-  }
+}
+
+/* Leaflet's own stylesheet is unlayered, so this override must be unlayered too
+   (a rule in @layer base would lose to it). Keeps the map dark before/without
+   tiles instead of flashing Leaflet's default light-grey background. */
+.leaflet-container {
+  background: var(--bg-sunk) !important;
+  font-family: inherit;
 }
 
 @layer utilities {

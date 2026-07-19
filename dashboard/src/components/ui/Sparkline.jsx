@@ -15,12 +15,13 @@ export default function Sparkline({
   width = 96,
   height = 32,
   strokeWidth = 2,
+  responsive = false,
 }) {
   const id = useId();
   const nums = data.map((n) => (n == null ? null : Number(n)));
   const valid = nums.filter((n) => n != null && !Number.isNaN(n));
   if (valid.length < 2) {
-    return <div style={{ width, height }} aria-hidden="true" />;
+    return <div style={{ width: responsive ? '100%' : width, height }} aria-hidden="true" />;
   }
 
   const min = Math.min(...valid);
@@ -42,7 +43,14 @@ export default function Sparkline({
   } Z`;
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+    <svg
+      width={responsive ? '100%' : width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio={responsive ? 'none' : 'xMidYMid meet'}
+      aria-hidden="true"
+      focusable="false"
+    >
       <defs>
         <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
