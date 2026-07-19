@@ -4,7 +4,6 @@ import 'leaflet/dist/leaflet.css';
 import Shell from './components/Shell.jsx';
 import FarmerView from './components/FarmerView.jsx';
 import AnalyticsView from './components/AnalyticsView.jsx';
-import AdminPanel from './components/AdminPanel.jsx';
 import { getStatus } from './lib/status.js';
 
 // Relative URLs are proxied to the Node API by Vite (see vite.config.js).
@@ -17,12 +16,10 @@ const DEMO = new URLSearchParams(window.location.search).get('demo') || '';
 const STATUS_URL = `${API_BASE}/api/status${DEMO ? `?demo=${encodeURIComponent(DEMO)}` : ''}`;
 
 // Views are addressed by hash so no router dependency is needed:
-//   #/ or none -> farmer view (default), #analytics -> judge/analytics view,
-//   #admin -> ops console.
+//   #/ or none -> farmer view (default), #analytics -> judge/analytics view.
 function viewFromHash() {
   const h = window.location.hash.replace(/^#\/?/, '');
   if (h === 'analytics') return 'analytics';
-  if (h === 'admin') return 'admin';
   return 'farmer';
 }
 
@@ -109,7 +106,6 @@ export default function App() {
   const nav = [
     { id: 'farmer', hash: '#/', label: language === 'en' ? 'Advisory' : 'Ushauri', icon: 'advisory' },
     { id: 'analytics', hash: '#analytics', label: 'Analytics', icon: 'analytics' },
-    { id: 'admin', hash: '#admin', label: 'Admin', icon: 'admin' },
   ];
 
   const cropLabel = rec?.crop || 'maize';
@@ -125,7 +121,6 @@ export default function App() {
       title: 'Analytics',
       subtitle: 'Rainfall, drought signal, and season onset for Machakos',
     },
-    admin: { title: 'Admin console', subtitle: 'Operations, delivery, and audit trail' },
   };
   const head = TITLES[view];
 
@@ -156,7 +151,6 @@ export default function App() {
         <FarmerView status={status} language={language} onLanguageChange={changeLanguage} />
       )}
       {view === 'analytics' && <AnalyticsView status={status} health={health} language={language} />}
-      {view === 'admin' && <AdminPanel />}
 
       <footer className="mx-auto mt-12 max-w-content text-caption text-secondary">
         {status?.dataAsOf && (
