@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import 'leaflet/dist/leaflet.css';
-import AlertBadge from './components/AlertBadge.jsx';
-import RainfallChart from './components/RainfallChart.jsx';
-import RecommendationCard from './components/RecommendationCard.jsx';
-import OnsetCard from './components/OnsetCard.jsx';
-import IcpacMap from './components/IcpacMap.jsx';
+import Shell from './components/Shell.jsx';
 import FarmerView from './components/FarmerView.jsx';
+import AnalyticsView from './components/AnalyticsView.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
+import { getStatus } from './lib/status.js';
 
 // Relative URLs are proxied to the Node API by Vite (see vite.config.js).
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -28,45 +26,24 @@ function viewFromHash() {
   return 'farmer';
 }
 
-/** Analytics/judge view — the original dashboard cards. */
-function AnalyticsView({ status }) {
-  const alertLevel = status?.alert?.level;
-  const anomalyPct = status?.alert?.anomalyPct;
-  const spi = status?.alert?.spi;
-  const rec = status?.recommendation;
+function fmtRun(iso) {
+  if (!iso) return 'unknown';
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return 'unknown';
+  }
+}
 
+function CenterMessage({ children }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <RecommendationCard
-        recommendation={rec?.recommendation}
-        confidence={rec?.confidence}
-        advisoryText={status?.advisory?.sw}
-        alertLevel={alertLevel}
-        computedAt={rec?.computedAt}
-        offSeason={rec?.phase === 'off_season'}
-      />
-
-      <div className="rounded-2xl bg-white shadow-md p-6 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-slate-700">30-day rainfall vs normal</h2>
-          <span className="text-sm text-slate-500">
-            {spi != null && (
-              <span className="mr-3">SPI {spi > 0 ? '+' : ''}{spi.toFixed(2)}</span>
-            )}
-            Anomaly: {anomalyPct != null ? `${Math.round(anomalyPct)}%` : '—'}
-          </span>
-        </div>
-        <RainfallChart data={status?.rainfall} />
-        {status?.advisory?.en && (
-          <p className="text-xs text-slate-500 border-t pt-3">
-            <span className="font-semibold">EN:</span> {status.advisory.en}
-          </p>
-        )}
-      </div>
-
-      <OnsetCard onset={status?.onset} />
-
-      <IcpacMap />
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-center text-secondary">
+      {children}
     </div>
   );
 }
@@ -77,9 +54,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState(viewFromHash);
-  const [language, setLanguage] = useState(
-    () => localStorage.getItem('mw_lang') || 'sw'
-  );
+  const [language, setLanguage] = useState(() => localStorage.getItem('mw_lang') || 'sw');
 
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
@@ -111,120 +86,90 @@ export default function App() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-slate-500">
-        Loading MawinguOps status…
-      </div>
-    );
+    return <CenterMessage>Loading MawinguOps status…</CenterMessage>;
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="rounded-lg bg-red-50 text-red-700 p-6 max-w-md text-center">
-          <p className="font-semibold mb-1">Could not reach the API</p>
-          <p className="text-sm">{error}</p>
-          <p className="text-xs mt-2 text-red-500">
-            Is the Node API running on port 3000?
+      <CenterMessage>
+        <div className="max-w-measure rounded-card border border-border bg-surface-1 p-6 shadow-card">
+          <p className="mb-1 font-display text-card-title font-medium text-status-red">
+            Could not reach the API
           </p>
+          <p className="text-body text-secondary">{error}</p>
+          <p className="mt-2 text-small text-muted">Is the Node API running on port 3000?</p>
         </div>
-      </div>
+      </CenterMessage>
     );
   }
 
   const rec = status?.recommendation;
-  const tabs = [
-    { id: 'farmer', hash: '#/', label: language === 'en' ? 'Advisory' : 'Ushauri' },
-    { id: 'analytics', hash: '#analytics', label: 'Analytics' },
-    { id: 'admin', hash: '#admin', label: 'Admin' },
+  const st = getStatus({ recommendation: rec?.recommendation, phase: rec?.phase, language });
+
+  const nav = [
+    { id: 'farmer', hash: '#/', label: language === 'en' ? 'Advisory' : 'Ushauri', icon: 'advisory' },
+    { id: 'analytics', hash: '#analytics', label: 'Analytics', icon: 'analytics' },
+    { id: 'admin', hash: '#admin', label: 'Admin', icon: 'admin' },
   ];
 
+  const cropLabel = rec?.crop || 'maize';
+  const TITLES = {
+    farmer: {
+      title: language === 'en' ? 'Advisory' : 'Ushauri',
+      subtitle:
+        language === 'en'
+          ? `This week's ${cropLabel} guidance — Machakos County`
+          : `Ushauri wa ${cropLabel} wiki hii — Kaunti ya Machakos`,
+    },
+    analytics: {
+      title: 'Analytics',
+      subtitle: 'Rainfall, drought signal, and season onset for Machakos',
+    },
+    admin: { title: 'Admin console', subtitle: 'Operations, delivery, and audit trail' },
+  };
+  const head = TITLES[view];
+
+  // The top-bar status pill appears on the data views; Advisory leads with its
+  // own hero, so it does not also repeat the pill.
+  const showPill = view === 'analytics';
+
   return (
-    <div className="min-h-screen p-4 sm:p-6 max-w-5xl mx-auto">
+    <Shell
+      nav={nav}
+      activeId={view}
+      region="Machakos County"
+      health={health}
+      lastRun={fmtRun(status?.lastPipelineRun)}
+      title={head.title}
+      subtitle={head.subtitle}
+      status={showPill ? { tone: st.tone, word: st.word } : undefined}
+    >
       {status?.demo && (
-        <div className="mb-4 rounded-lg bg-amber-100 text-amber-800 text-sm px-4 py-2 text-center">
-          Demo scenario: <span className="font-semibold">{status.demo.replace(/_/g, ' ')}</span> —
-          seeded in-season data for the walkthrough. Real farmers on this date see the off-season advisory.
+        <div className="mb-6 rounded-control border border-border bg-status-amber-bg px-4 py-3 text-small text-status-amber">
+          Demo scenario:{' '}
+          <span className="font-semibold">{status.demo.replace(/_/g, ' ')}</span> — seeded in-season
+          data for the walkthrough. Real farmers on this date see the off-season advisory.
         </div>
       )}
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">MawinguOps</h1>
-          <p className="text-sm text-slate-500">
-            <span className="capitalize">{rec?.crop || 'maize'}</span> planting advisory — Machakos County, Kenya
-          </p>
-        </div>
-        <nav className="flex gap-1 rounded-full bg-slate-200 p-1">
-          {tabs.map((t) => (
-            <a
-              key={t.id}
-              href={t.hash}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold ${
-                view === t.id ? 'bg-white text-slate-800 shadow' : 'text-slate-500'
-              }`}
-            >
-              {t.label}
-            </a>
-          ))}
-        </nav>
-        {view === 'analytics' && (
-          <div className="text-right w-full sm:w-auto">
-            <AlertBadge alertLevel={status?.alert?.level} />
-            {status?.alert?.triggerCategory && (
-              <p className="text-xs text-slate-500 mt-1">
-                ICPAC trigger:{' '}
-                <span className="font-semibold capitalize">
-                  {status.alert.triggerCategory}
-                </span>
-                {status.alert.spi != null && (
-                  <>
-                    {' '}· SPI {status.alert.spi > 0 ? '+' : ''}
-                    {status.alert.spi.toFixed(2)}
-                  </>
-                )}
-              </p>
-            )}
-            {status?.alert?.spi1Month != null && (
-              <p className="text-xs text-slate-400 mt-0.5">
-                SPI-1 {status.alert.spi1Month > 0 ? '+' : ''}
-                {status.alert.spi1Month.toFixed(2)}{' '}
-                <span className="italic">
-                  (Drought Watch method, ref {status.alert.spi1MonthRef})
-                </span>
-              </p>
-            )}
-            <p className="text-xs text-slate-400 mt-1">
-              API: {health?.status} · DB: {health?.database}
-            </p>
-          </div>
-        )}
-      </header>
 
       {view === 'farmer' && (
-        <FarmerView
-          status={status}
-          language={language}
-          onLanguageChange={changeLanguage}
-        />
+        <FarmerView status={status} language={language} onLanguageChange={changeLanguage} />
       )}
-      {view === 'analytics' && <AnalyticsView status={status} />}
+      {view === 'analytics' && <AnalyticsView status={status} health={health} language={language} />}
       {view === 'admin' && <AdminPanel />}
 
-      <footer className="mt-6 text-center text-xs text-slate-400">
+      <footer className="mx-auto mt-12 max-w-content text-caption text-secondary">
         {status?.dataAsOf && (
           <>
-            Rainfall data as of{' '}
-            {new Date(status.dataAsOf).toLocaleDateString()}
+            Rainfall data as of {new Date(status.dataAsOf).toLocaleDateString()}
             {status?.dataSource ? ` (${status.dataSource})` : ''}
             {' · '}
           </>
         )}
         Last pipeline run:{' '}
-        {status?.lastPipelineRun
-          ? new Date(status.lastPipelineRun).toLocaleString()
-          : 'unknown'}
+        {status?.lastPipelineRun ? new Date(status.lastPipelineRun).toLocaleString() : 'unknown'}
         {' · '}Data: CHIRPS (UCSB-CHC), Open-Meteo &amp; ICPAC Geoportal
       </footer>
-    </div>
+    </Shell>
   );
 }
