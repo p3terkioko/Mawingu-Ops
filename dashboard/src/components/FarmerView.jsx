@@ -1,93 +1,93 @@
 import React from 'react';
-import AlertBadge from './AlertBadge.jsx';
+import Card from './ui/Card.jsx';
+import StatusHero from './ui/StatusHero.jsx';
+import SegmentedControl from './ui/SegmentedControl.jsx';
 import SubscribeForm from './SubscribeForm.jsx';
+import Icon from './ui/Icon.jsx';
+import { getStatus } from '../lib/status.js';
 
 /**
- * Farmer-facing view: the advisory in large type with a language toggle, the
- * action (or PREPARE) headline, and a subscribe form. Designed to be legible
- * on a 375px-wide phone. Branches on planting_recommendations.phase — same
- * rule as USSD and SMS — so every channel shows the same decision.
+ * Farmer-facing Advisory — the light, high-contrast variant (feature phones,
+ * bright daylight). A centered single column: the status hero, the advisory
+ * prose, the USSD hint, and the subscribe card. Branches on
+ * planting_recommendations.phase — the same rule as USSD and SMS — so every
+ * channel shows the same decision.
  */
-const REC_LABELS = {
-  sw: { PLANT_NOW: 'PANDA SASA', WAIT: 'SUBIRI', DO_NOT_PLANT: 'USIPANDE', PREPARE: 'ANDAA SHAMBA' },
-  en: { PLANT_NOW: 'PLANT NOW', WAIT: 'WAIT', DO_NOT_PLANT: 'DO NOT PLANT', PREPARE: 'PREPARE' },
-};
-
-const REC_COLOR = {
-  PLANT_NOW: 'text-green-600',
-  WAIT: 'text-yellow-600',
-  DO_NOT_PLANT: 'text-red-600',
-  PREPARE: 'text-sky-600',
-};
-
 const T = {
   sw: {
     heading: 'Ushauri wa wiki hii — mahindi, Machakos',
     confidence: 'Uhakika',
     noAdvisory: 'Hakuna ushauri kwa sasa. Jaribu tena baadaye.',
+    ussdTitle: 'Kwenye simu ya kawaida',
     ussd: 'Piga *384# kwa simu yoyote kupata ushauri huu.',
+    language: 'Lugha',
   },
   en: {
     heading: "This week's advisory — maize, Machakos",
     confidence: 'Confidence',
     noAdvisory: 'No advisory available yet. Please try again later.',
+    ussdTitle: 'On any basic phone',
     ussd: 'Dial *384# on any phone to get this advisory.',
+    language: 'Language',
   },
 };
 
 export default function FarmerView({ status, language, onLanguageChange }) {
   const t = T[language] || T.sw;
   const rec = status?.recommendation;
+  const st = getStatus({ recommendation: rec?.recommendation, phase: rec?.phase, language });
   const offSeason = rec?.phase === 'off_season';
-  const key = offSeason ? 'PREPARE' : rec?.recommendation;
-  const label = (REC_LABELS[language] || REC_LABELS.sw)[key] || key || '—';
-  const color = REC_COLOR[key] || 'text-slate-600';
   const advisoryText = status?.advisory?.[language] || status?.advisory?.sw;
 
   return (
-    <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-      {/* Language toggle — a real control, not a footnote. */}
-      <div className="flex justify-center gap-2">
-        {[
-          { code: 'sw', name: 'Kiswahili' },
-          { code: 'en', name: 'English' },
-        ].map(({ code, name }) => (
-          <button
-            key={code}
-            onClick={() => onLanguageChange(code)}
-            className={`px-5 py-2 rounded-full text-sm font-semibold border ${
-              language === code
-                ? 'bg-slate-800 text-white border-slate-800'
-                : 'bg-white text-slate-600 border-slate-300'
-            }`}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
-
-      <div className="rounded-2xl bg-white shadow-md p-6 flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm text-slate-500">{t.heading}</p>
-          <AlertBadge alertLevel={status?.alert?.level} />
+    <div data-theme="light" className="rounded-card bg-canvas p-4 sm:p-8 animate-fade-up">
+      <div className="mx-auto flex max-w-measure flex-col gap-6">
+        {/* Language toggle — the shared control, not a footnote. */}
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-caption font-semibold uppercase tracking-wide text-muted">
+            {t.language}
+          </span>
+          <SegmentedControl
+            ariaLabel={t.language}
+            options={[
+              { value: 'sw', label: 'Kiswahili' },
+              { value: 'en', label: 'English' },
+            ]}
+            value={language}
+            onChange={onLanguageChange}
+          />
         </div>
 
-        <h1 className={`text-4xl font-extrabold ${color}`}>{label}</h1>
+        <StatusHero tone={st.tone} eyebrow={t.heading} word={st.word} summary={st.summary} />
 
-        <p className="text-xl leading-relaxed text-slate-800">
-          {advisoryText || t.noAdvisory}
-        </p>
-
-        {!offSeason && rec?.confidence != null && (
-          <p className="text-sm text-slate-500">
-            {t.confidence}: <span className="font-semibold">{Math.round(rec.confidence)}%</span>
+        {/* Full advisory prose. */}
+        <Card className="flex flex-col gap-4 p-6">
+          <p className="text-body-lg leading-relaxed text-primary">
+            {advisoryText || t.noAdvisory}
           </p>
-        )}
+          {!offSeason && rec?.confidence != null && (
+            <p className="text-small text-secondary">
+              {t.confidence}:{' '}
+              <span className="font-semibold text-primary">{Math.round(rec.confidence)}%</span>
+            </p>
+          )}
+        </Card>
 
-        <p className="text-sm text-slate-500 border-t pt-3">{t.ussd}</p>
+        {/* USSD hint. */}
+        <Card className="flex items-center gap-4 p-6">
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-control bg-surface-2 text-accent">
+            <Icon name="advisory" size={22} />
+          </span>
+          <div>
+            <p className="text-caption font-semibold uppercase tracking-wide text-muted">
+              {t.ussdTitle}
+            </p>
+            <p className="text-body text-primary">{t.ussd}</p>
+          </div>
+        </Card>
+
+        <SubscribeForm language={language} />
       </div>
-
-      <SubscribeForm language={language} />
     </div>
   );
 }

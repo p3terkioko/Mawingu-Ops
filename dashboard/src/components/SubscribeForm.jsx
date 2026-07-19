@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import Card from './ui/Card.jsx';
+import Button from './ui/Button.jsx';
+import Field from './ui/Field.jsx';
+import SegmentedControl from './ui/SegmentedControl.jsx';
+import Icon from './ui/Icon.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -7,10 +12,13 @@ const T = {
   sw: {
     title: 'Pokea ushauri kila wiki',
     hint: 'Kwa SMS au barua pepe — bila malipo.',
+    channel: 'Njia ya kupokea',
     sms: 'SMS',
     email: 'Barua pepe',
-    placeholderSms: 'Nambari ya simu, mf. +2547XXXXXXXX',
-    placeholderEmail: 'Barua pepe, mf. jina@mfano.com',
+    labelSms: 'Nambari ya simu',
+    labelEmail: 'Barua pepe',
+    placeholderSms: 'mf. +2547XXXXXXXX',
+    placeholderEmail: 'mf. jina@mfano.com',
     button: 'Jiunge',
     sending: 'Inatuma…',
     success: 'Umejiunga! Utapokea ushauri kila wiki.',
@@ -19,10 +27,13 @@ const T = {
   en: {
     title: 'Get the advisory every week',
     hint: 'By SMS or email — free.',
+    channel: 'Delivery channel',
     sms: 'SMS',
     email: 'Email',
-    placeholderSms: 'Phone number, e.g. +2547XXXXXXXX',
-    placeholderEmail: 'Email, e.g. name@example.com',
+    labelSms: 'Phone number',
+    labelEmail: 'Email address',
+    placeholderSms: 'e.g. +2547XXXXXXXX',
+    placeholderEmail: 'e.g. name@example.com',
     button: 'Subscribe',
     sending: 'Sending…',
     success: 'Subscribed! You will receive the advisory every week.',
@@ -48,51 +59,55 @@ export default function SubscribeForm({ language = 'sw' }) {
     }
   }
 
-  return (
-    <div className="rounded-2xl bg-white shadow-md p-6">
-      <h2 className="font-semibold text-slate-700">{t.title}</h2>
-      <p className="text-sm text-slate-500 mb-3">{t.hint}</p>
+  const isEmail = channel === 'email';
 
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <div className="flex gap-2">
-          {['sms', 'email'].map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setChannel(c)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
-                channel === c
-                  ? 'bg-sky-600 text-white border-sky-600'
-                  : 'bg-white text-slate-600 border-slate-300'
-              }`}
-            >
-              {c === 'sms' ? t.sms : t.email}
-            </button>
-          ))}
+  return (
+    <Card className="flex flex-col gap-4 p-6">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-10 w-10 flex-none items-center justify-center rounded-control bg-surface-2 text-accent">
+          <Icon name="bell" size={20} />
+        </span>
+        <div>
+          <h2 className="font-display text-card-title font-medium text-primary">{t.title}</h2>
+          <p className="text-small text-secondary">{t.hint}</p>
         </div>
-        <input
-          type={channel === 'email' ? 'email' : 'tel'}
+      </div>
+
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <span className="text-small font-medium text-secondary">{t.channel}</span>
+          <SegmentedControl
+            ariaLabel={t.channel}
+            options={[
+              { value: 'sms', label: t.sms },
+              { value: 'email', label: t.email },
+            ]}
+            value={channel}
+            onChange={setChannel}
+          />
+        </div>
+
+        <Field
+          label={isEmail ? t.labelEmail : t.labelSms}
+          type={isEmail ? 'email' : 'tel'}
+          inputMode={isEmail ? 'email' : 'tel'}
           required
           value={contact}
           onChange={(e) => setContact(e.target.value)}
-          placeholder={channel === 'email' ? t.placeholderEmail : t.placeholderSms}
-          className="border border-slate-300 rounded-lg px-4 py-3 text-base"
+          placeholder={isEmail ? t.placeholderEmail : t.placeholderSms}
         />
-        <button
-          type="submit"
-          disabled={state === 'sending'}
-          className="bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg px-4 py-3 disabled:opacity-50"
-        >
+
+        <Button type="submit" disabled={state === 'sending'}>
           {state === 'sending' ? t.sending : t.button}
-        </button>
+        </Button>
       </form>
 
       {state === 'done' && (
-        <p className="mt-3 text-sm font-semibold text-green-700">{t.success}</p>
+        <p className="flex items-center gap-2 text-small font-semibold text-status-green">
+          <Icon name="check" size={18} /> {t.success}
+        </p>
       )}
-      {state === 'error' && (
-        <p className="mt-3 text-sm font-semibold text-red-600">{t.error}</p>
-      )}
-    </div>
+      {state === 'error' && <p className="text-small font-semibold text-status-red">{t.error}</p>}
+    </Card>
   );
 }
