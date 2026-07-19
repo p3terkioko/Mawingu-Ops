@@ -2,7 +2,154 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-100 text-slate-800;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+/* ------------------------------------------------------------------ *
+ * Design tokens — single source of truth.
+ * :root holds the dark theme (default for Analytics + Admin).
+ * [data-theme="light"] overrides for the farmer-facing Advisory view.
+ * Every component consumes these via Tailwind utilities mapped in
+ * tailwind.config.js (bg-surface-1, text-primary, rounded-card, …)
+ * or via var(--token) directly. No hardcoded hex in components.
+ * ------------------------------------------------------------------ */
+:root {
+  /* Dark theme (Analytics, Admin) */
+  --bg-canvas: #0b0b12;
+  --bg-sunk: #08080e;
+  --surface-1: #15151f; /* cards */
+  --surface-2: #1c1c29; /* raised, hover, inputs */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  --accent: #7c5cff; /* violet primary */
+  --accent-hover: #8f73ff;
+  --accent-press: #6a46f0;
+  --accent-glow: rgba(124, 92, 255, 0.28);
+  --accent-contrast: #ffffff; /* text on accent fill */
+
+  --gold: #f5b94a; /* maize, warm secondary accent */
+  --sky: #55b8ff; /* rainfall data series */
+
+  --text-primary: #f5f5fa;
+  --text-secondary: #a6a6bc;
+  --text-muted: #6e6e85;
+
+  /* Status (traffic light) */
+  --status-green: #29c777;
+  --status-amber: #f5b02e;
+  --status-red: #ff5d6c;
+  --status-green-bg: rgba(41, 199, 119, 0.14);
+  --status-amber-bg: rgba(245, 176, 46, 0.14);
+  --status-red-bg: rgba(255, 93, 108, 0.14);
+
+  /* Chart-specific */
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-normal: #8a8aa3; /* historical-normal dashed series */
+
+  /* Radius */
+  --radius-card: 20px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+
+  /* Spacing scale: use ONLY these steps */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Elevation. Glow is reserved for the status hero card only. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme='light'] {
+  --bg-canvas: #f7f8fb;
+  --bg-sunk: #eef0f5;
+  --surface-1: #ffffff;
+  --surface-2: #f2f3f8;
+  --border: rgba(15, 17, 26, 0.08);
+  --border-strong: rgba(15, 17, 26, 0.16);
+
+  --accent: #6a46f0; /* darker for contrast on light */
+  --accent-hover: #5a38de;
+  --accent-press: #4e2fc4;
+  --accent-glow: rgba(106, 70, 240, 0.18);
+  --accent-contrast: #ffffff;
+
+  --text-primary: #14151f;
+  --text-secondary: #565672;
+  --text-muted: #86869b;
+
+  --status-green: #1aa55e;
+  --status-amber: #b8791a;
+  --status-red: #d53d4c;
+  --status-green-bg: rgba(26, 165, 94, 0.12);
+  --status-amber-bg: rgba(184, 121, 26, 0.12);
+  --status-red-bg: rgba(213, 61, 76, 0.12);
+
+  --chart-grid: rgba(15, 17, 26, 0.07);
+  --chart-normal: #94a3b8;
+
+  --shadow-card: 0 1px 2px rgba(15, 17, 26, 0.06), 0 8px 24px rgba(15, 17, 26, 0.06);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  }
+
+  /* All figures line up in columns and read as data. */
+  .tabular,
+  .metric,
+  th,
+  td {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Visible keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Leaflet controls should not punch through the dark UI. */
+  .leaflet-container {
+    background: var(--bg-sunk);
+    font-family: inherit;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
