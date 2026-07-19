@@ -30,9 +30,11 @@
   --gold: #f5b94a; /* maize, warm secondary accent */
   --sky: #55b8ff; /* rainfall data series */
 
-  --text-primary: #f5f5fa;
-  --text-secondary: #a6a6bc;
-  --text-muted: #7f7f97; /* raised for AA on small text over the dark canvas */
+  /* Softened off-white, not glaring pure white — easier on the eye against the
+     dark canvas while keeping ~12:1 contrast. */
+  --text-primary: #d6d6e2;
+  --text-secondary: #9a9ab2;
+  --text-muted: #7f7f97; /* AA on small text over the dark canvas */
 
   /* Status (traffic light) */
   --status-green: #29c777;
