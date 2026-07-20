@@ -4,6 +4,7 @@ import StatusHero from './ui/StatusHero.jsx';
 import SegmentedControl from './ui/SegmentedControl.jsx';
 import SubscribeForm from './SubscribeForm.jsx';
 import Icon from './ui/Icon.jsx';
+import AiBadge from './ui/AiBadge.jsx';
 import { getStatus } from '../lib/status.js';
 
 /**
@@ -21,6 +22,7 @@ const T = {
     ussdTitle: 'Kwenye simu ya kawaida',
     ussd: 'Piga *384# kwa simu yoyote kupata ushauri huu.',
     language: 'Lugha',
+    aiLabel: 'Tafsiri ya AI',
   },
   en: {
     heading: "This week's advisory — maize, Machakos",
@@ -29,6 +31,7 @@ const T = {
     ussdTitle: 'On any basic phone',
     ussd: 'Dial *384# on any phone to get this advisory.',
     language: 'Language',
+    aiLabel: 'AI translation',
   },
 };
 
@@ -64,9 +67,12 @@ export default function FarmerView({ status, language, onLanguageChange }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
           <Card className="flex flex-col gap-4 p-6">
-            <p className="text-caption font-semibold uppercase tracking-wide text-muted">
-              {t.heading}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-caption font-semibold uppercase tracking-wide text-muted">
+                {t.heading}
+              </p>
+              <AiBadge label={t.aiLabel} />
+            </div>
             <p className="text-body-lg leading-relaxed text-primary">
               {advisoryText || t.noAdvisory}
             </p>

@@ -106,6 +106,22 @@ const PATHS = {
       strokeLinejoin="round"
     />
   ),
+  sparkle: (
+    <path
+      d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Zm6 9l.8 2.2L21 15l-2.2.8L18 18l-.8-2.2L15 15l2.2-.8L18 12Z"
+      fill="currentColor"
+    />
+  ),
+  globe: (
+    <path
+      d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18M3.5 9h17M3.5 15h17"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
 };
 
 export default function Icon({ name, size = 20, className = '', ...rest }) {

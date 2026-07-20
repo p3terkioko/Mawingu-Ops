@@ -105,7 +105,7 @@ export default function App() {
 
   const nav = [
     { id: 'farmer', hash: '#/', label: language === 'en' ? 'Advisory' : 'Ushauri', icon: 'advisory' },
-    { id: 'analytics', hash: '#analytics', label: 'Analytics', icon: 'analytics' },
+    { id: 'analytics', hash: '#analytics', label: 'Early warning', icon: 'analytics' },
   ];
 
   const cropLabel = rec?.crop || 'maize';
@@ -118,8 +118,8 @@ export default function App() {
           : `Ushauri wa ${cropLabel} wiki hii — Kaunti ya Machakos`,
     },
     analytics: {
-      title: 'Analytics',
-      subtitle: 'Rainfall, drought signal, and season onset for Machakos',
+      title: 'Early warning',
+      subtitle: 'Anticipatory maize advisory for Machakos — risk, lead time, and what to do',
     },
   };
   const head = TITLES[view];
