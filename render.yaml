@@ -6,7 +6,7 @@
 #
 # Deploy: push this repo to GitHub, then in Render → "New" → "Blueprint" and
 # select the repo. Render reads this file and creates all three. After the first
-# deploy, seed the demo scenarios once (see DEPLOY.md):
+# deploy, seed the demo scenarios once:
 #   Render dashboard → mawinguops-api → Shell → `cd api && npm run seed:demo`
 #
 # Secrets NOT in this file (set them in the Render dashboard, per service):

@@ -155,8 +155,9 @@ organizer) so its outputs are comparable to official regional products:
 
 The project deploys to [Render](https://render.com) (managed Postgres + Node API
 + static dashboard) via [`render.yaml`](render.yaml); the API also ships a
-[`Dockerfile`](api/Dockerfile) for any container host. Full steps — including
-seeding and Africa's Talking sandbox wiring — are in [`DEPLOY.md`](DEPLOY.md).
+[`Dockerfile`](api/Dockerfile) for any container host. After the first deploy,
+seed the in-season demo scenarios once with `cd api && npm run seed:demo`, then
+point an Africa's Talking sandbox USSD channel at the API's `/ussd` endpoint.
 
 ### Demoing the plant / wait / don't-plant path off-season
 
@@ -229,7 +230,7 @@ createdb mawinguops
 # to re-run. Uses DATABASE_URL from your .env — no psql loop needed.
 cd api && npm run migrate && cd ..
 
-# Optional: seed the in-season demo scenarios for the walkthrough (see DEPLOY.md).
+# Optional: seed the in-season demo scenarios for the walkthrough.
 cd api && npm run seed:demo && cd ..
 ```
 

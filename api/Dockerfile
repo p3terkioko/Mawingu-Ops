@@ -15,5 +15,5 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # Apply idempotent migrations, then start. Seed demo data separately with
-# `npm run seed:demo` (see DEPLOY.md) so it is an explicit, one-off action.
+# `npm run seed:demo` so it is an explicit, one-off action.
 CMD ["sh", "-c", "npm run migrate && npm start"]
