@@ -19,3 +19,6 @@ pipeline/data/*.csv
 
 # OS
 .DS_Store
+
+# Local deploy notes — intentionally untracked
+DEPLOY.md
