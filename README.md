@@ -71,7 +71,7 @@ innovation is the delivery and the drought science, not the wording step.
                 ▼                                                                ▼
         ┌───────────────┐                                              ┌──────────────────┐
         │ Node USSD API │◀──── Africa's Talking ◀──── *384# ◀── Farmer │ React dashboard  │
-        │  POST /ussd   │                                              │  (demo / judges) │
+        │  POST /ussd   │                                              │  (demo / review) │
         └───────────────┘                                              └──────────────────┘
 ```
 
@@ -324,7 +324,7 @@ npm run dev
 
 The dashboard reads `GET /api/status` and renders the alert badge, the
 recommendation card, and an actual-vs-baseline rainfall chart. It is for the
-demo video and judges only.
+demo video and review only.
 
 ---
 

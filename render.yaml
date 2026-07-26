@@ -1,5 +1,5 @@
 # MawinguOps — Render Blueprint.
-# Provisions everything a judge needs to reach with zero local setup:
+# Provisions everything needed to reach with zero local setup:
 #   1. a managed PostgreSQL database,
 #   2. the Node USSD API (Docker), and
 #   3. the React dashboard as a static site pointed at the live API.

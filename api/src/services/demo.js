@@ -6,7 +6,7 @@
  * The live plant/wait/don't-plant decision is only "in season" during the two
  * Kenyan rain windows (see pipeline/season.py). Outside them — including the
  * submission window — a real farmer correctly gets the off-season PREPARE
- * message. To let a judge or demo video walk the full decision path at any time
+ * message. To let a demo video walk the full decision path at any time
  * of year WITHOUT changing what a real farmer sees, a request may carry a
  * `demo` selector. It maps to a dedicated, pre-seeded location holding a fresh,
  * in-season scenario (see api/src/db/seed_demo.js). Everything downstream still

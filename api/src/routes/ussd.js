@@ -213,7 +213,7 @@ router.post('/ussd', async (req, res) => {
 
     // ---- First dial: no session yet -------------------------------------
     if (!session) {
-      // A demo/judge harness may pass `demo=plant_now|wait|do_not_plant` on the
+      // A demo harness may pass `demo=plant_now|wait|do_not_plant` on the
       // first request; it is persisted for the whole session (real farmers send
       // nothing and stay on production 'machakos').
       const demoScenario = demoService.normaliseScenario(req.body && req.body.demo);

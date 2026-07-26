@@ -6,7 +6,7 @@ import { TONE_CLASSES } from '../../lib/status.js';
 /**
  * Plain-language signal card for the early-warning readout. The verdict word is
  * the hero (colour-coded by tone); a one-line meaning sits under it; the raw
- * technical figure is demoted to small print for officers/judges. Optional
+ * technical figure is demoted to small print for officers. Optional
  * sparkline for series-backed signals.
  *
  * Props:

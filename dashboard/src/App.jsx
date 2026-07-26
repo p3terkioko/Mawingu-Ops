@@ -10,13 +10,13 @@ import { getStatus } from './lib/status.js';
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 // Optional demo scenario from the URL (?demo=plant_now|wait|do_not_plant). Lets
-// a judge/demo walkthrough show the full plant/wait/don't-plant decision path
+// a demo walkthrough show the full plant/wait/don't-plant decision path
 // off-season, without changing what a real farmer sees. Absent -> production.
 const DEMO = new URLSearchParams(window.location.search).get('demo') || '';
 const STATUS_URL = `${API_BASE}/api/status${DEMO ? `?demo=${encodeURIComponent(DEMO)}` : ''}`;
 
 // Views are addressed by hash so no router dependency is needed:
-//   #/ or none -> farmer view (default), #analytics -> judge/analytics view.
+//   #/ or none -> farmer view (default), #analytics -> analytics view.
 function viewFromHash() {
   const h = window.location.hash.replace(/^#\/?/, '');
   if (h === 'analytics') return 'analytics';

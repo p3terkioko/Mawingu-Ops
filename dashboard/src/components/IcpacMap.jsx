@@ -5,7 +5,7 @@ import SegmentedControl from './ui/SegmentedControl.jsx';
 
 /**
  * Regional context map backed by live ICPAC Geoportal WMS layers
- * (https://geoportal.icpac.net/geoserver/ows). Lets judges see MawinguOps's
+ * (https://geoportal.icpac.net/geoserver/ows). Lets officers see MawinguOps's
  * Machakos focus against official ICPAC layers — maize area, the growing-season
  * windows MawinguOps aligns to, and regional drought hazard.
  *

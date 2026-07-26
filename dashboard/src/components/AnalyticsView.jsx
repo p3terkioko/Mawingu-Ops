@@ -40,7 +40,7 @@ function fmtWhen(iso) {
 }
 
 /**
- * Early-warning readout (officer / judge view). The theme is anticipatory
+ * Early-warning readout (officer view). The theme is anticipatory
  * action, so this leads with the plain-language warning, the lead time to act,
  * and what to do — never a wall of indices. The raw figures (SPI, anomaly)
  * survive only as small print for credibility.
