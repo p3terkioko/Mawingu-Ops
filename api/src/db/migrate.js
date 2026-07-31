@@ -23,6 +23,13 @@ async function main() {
     console.error('[migrate] FATAL: DATABASE_URL is not set');
     process.exit(1);
   }
+  try {
+    const target = new URL(connectionString);
+    console.log(`[migrate] connecting to ${target.hostname}:${target.port || 5432}${target.pathname}`);
+  } catch {
+    console.error('[migrate] FATAL: DATABASE_URL is not a valid connection string');
+    process.exit(1);
+  }
   const pool = new Pool({ connectionString });
   pool.on('error', (err) => {
     console.error(`[migrate] idle client error: ${err && err.message ? err.message : err}`);
@@ -41,6 +48,9 @@ async function main() {
   } catch (err) {
     console.error(`\n[migrate] FAILED: ${err && err.message ? err.message : err}`);
     if (err && err.code) console.error(`[migrate] error code: ${err.code}`);
+    if (err && Array.isArray(err.errors)) {
+      for (const inner of err.errors) console.error(`[migrate] cause: ${inner.message} (${inner.code || 'no code'})`);
+    }
     if (err && err.stack) console.error(err.stack);
     process.exitCode = 1;
   } finally {
