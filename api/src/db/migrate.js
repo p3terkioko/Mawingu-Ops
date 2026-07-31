@@ -24,6 +24,9 @@ async function main() {
     process.exit(1);
   }
   const pool = new Pool({ connectionString });
+  pool.on('error', (err) => {
+    console.error(`[migrate] idle client error: ${err && err.message ? err.message : err}`);
+  });
   const dir = path.join(__dirname, 'migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
 
@@ -36,7 +39,9 @@ async function main() {
     }
     console.log(`[migrate] ${files.length} migration(s) applied`);
   } catch (err) {
-    console.error(`\n[migrate] FAILED: ${err.message}`);
+    console.error(`\n[migrate] FAILED: ${err && err.message ? err.message : err}`);
+    if (err && err.code) console.error(`[migrate] error code: ${err.code}`);
+    if (err && err.stack) console.error(err.stack);
     process.exitCode = 1;
   } finally {
     await pool.end();
