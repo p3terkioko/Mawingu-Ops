@@ -87,6 +87,50 @@ const MACHAKOS_BASELINE = {
   },
 };
 
+// Real 30-day Machakos rainfall (CHIRPS actuals + climatological baseline),
+// captured from the pipeline output. Seeded only on a cold DB so the dashboard
+// rainfall chart renders without the Python pipeline deployed. Never clobbers
+// real pipeline data (guarded on existence below).
+const MACHAKOS_RAINFALL = [
+  { date: '2026-05-27', actual: 0, baseline: 1.85 },
+  { date: '2026-05-28', actual: 0.06, baseline: 2.76 },
+  { date: '2026-05-29', actual: 0, baseline: 1.04 },
+  { date: '2026-05-30', actual: 1.45, baseline: 1.14 },
+  { date: '2026-05-31', actual: 1.9, baseline: 0.54 },
+  { date: '2026-06-01', actual: 0.7, baseline: 0.82 },
+  { date: '2026-06-02', actual: 2, baseline: 0.91 },
+  { date: '2026-06-03', actual: 0.9, baseline: 0.54 },
+  { date: '2026-06-04', actual: 0.2, baseline: 1.5 },
+  { date: '2026-06-05', actual: 0.2, baseline: 1.34 },
+  { date: '2026-06-06', actual: 0, baseline: 2.74 },
+  { date: '2026-06-07', actual: 0.4, baseline: 0.53 },
+  { date: '2026-06-08', actual: 0, baseline: 1.1 },
+  { date: '2026-06-09', actual: 0.6, baseline: 1.83 },
+  { date: '2026-06-10', actual: 0.4, baseline: 0.52 },
+  { date: '2026-06-11', actual: 1.6, baseline: 0.43 },
+  { date: '2026-06-12', actual: 0.3, baseline: 0.22 },
+  { date: '2026-06-13', actual: 0.5, baseline: 0.25 },
+  { date: '2026-06-14', actual: 0, baseline: 0.29 },
+  { date: '2026-06-15', actual: 0.3, baseline: 0.2 },
+  { date: '2026-06-16', actual: 0.3, baseline: 0.13 },
+  { date: '2026-06-17', actual: 0.6, baseline: 0.17 },
+  { date: '2026-06-18', actual: 1.7, baseline: 0.1 },
+  { date: '2026-06-19', actual: 1.5, baseline: 0.14 },
+  { date: '2026-06-20', actual: 0.3, baseline: 0.08 },
+  { date: '2026-06-21', actual: 0.3, baseline: 0.15 },
+  { date: '2026-06-22', actual: 0, baseline: 0.21 },
+  { date: '2026-06-23', actual: 2.8, baseline: 0.2 },
+  { date: '2026-06-24', actual: 1.9, baseline: 0.27 },
+  { date: '2026-06-25', actual: 0.4, baseline: 0.1 },
+];
+
+// Day-of-year, matching the calculation in routes/health.js.
+function dayOfYear(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+  return Math.floor((d - start) / 86400000);
+}
+
 async function insertAlert(pool, location, a, computedOffsetSec = 0) {
   await pool.query(
     `INSERT INTO alert_levels
@@ -154,6 +198,33 @@ async function ensureMachakosBaseline(pool) {
   console.log('[seed] machakos off-season baseline inserted (PREPARE)');
 }
 
+async function ensureMachakosRainfall(pool) {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM rainfall_actuals WHERE location = 'machakos' LIMIT 1`
+  );
+  if (rows.length > 0) {
+    console.log('[seed] machakos rainfall present — skipped');
+    return;
+  }
+  for (const p of MACHAKOS_RAINFALL) {
+    await pool.query(
+      `INSERT INTO rainfall_actuals (location, date, rainfall_mm, source)
+       VALUES ('machakos', $1, $2, 'seed')
+       ON CONFLICT (location, date) DO NOTHING`,
+      [p.date, p.actual]
+    );
+    if (p.baseline != null) {
+      await pool.query(
+        `INSERT INTO rainfall_baseline (location, day_of_year, mean_rainfall_mm)
+         VALUES ('machakos', $1, $2)
+         ON CONFLICT (location, day_of_year) DO NOTHING`,
+        [dayOfYear(p.date), p.baseline]
+      );
+    }
+  }
+  console.log(`[seed] machakos ${MACHAKOS_RAINFALL.length}-day rainfall + baseline inserted`);
+}
+
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -166,6 +237,7 @@ async function main() {
       await seedScenario(pool, s);
     }
     await ensureMachakosBaseline(pool);
+    await ensureMachakosRainfall(pool);
     console.log('[seed] demo scenarios ready');
   } catch (err) {
     console.error(`[seed] FAILED: ${err.message}`);

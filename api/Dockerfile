@@ -14,6 +14,8 @@ COPY src ./src
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# Apply idempotent migrations, then start. Seed demo data separately with
-# `npm run seed:demo` so it is an explicit, one-off action.
-CMD ["sh", "-c", "npm run migrate && npm start"]
+# Apply idempotent migrations, seed demo data (idempotent; guarded so it never
+# clobbers real pipeline output), then start. Seeding on boot means a free-tier
+# deploy needs no Render Shell to populate the database. A seed failure is
+# non-fatal so the service still starts.
+CMD ["sh", "-c", "npm run migrate && (npm run seed:demo || echo '[boot] seed skipped') && npm start"]
