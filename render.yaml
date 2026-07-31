@@ -23,8 +23,10 @@ services:
   - type: web
     name: mawinguops-api
     runtime: docker
-    rootDir: api
-    dockerfilePath: ./Dockerfile
+    # Docker paths are relative to the REPO ROOT on Render (not to any rootDir).
+    # The Dockerfile lives in api/ and its COPY paths expect api/ as the context.
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
     plan: free
     healthCheckPath: /health
     envVars:
