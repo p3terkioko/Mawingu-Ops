@@ -8,6 +8,7 @@
  */
 
 const path = require('path');
+const fs = require('fs');
 // Load .env from the repo root so `cd api && npm start` works (dotenv otherwise
 // only checks the current working directory). Falls back to a local api/.env.
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
@@ -32,17 +33,39 @@ app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
+// Serve the built React dashboard when it is bundled into the image
+// (single-service deploy). Absent in API-only setups, where the dev server
+// serves the UI instead.
+const publicDir = path.resolve(__dirname, '../public');
+const hasDashboard = fs.existsSync(path.join(publicDir, 'index.html'));
+if (hasDashboard) {
+  app.use(express.static(publicDir));
+}
+
 // Routes
 app.use('/', healthRoutes); // GET /health, GET /api/status
 app.use('/', ussdRoutes); // POST /ussd
 app.use('/', subscriptionRoutes); // POST /api/subscribe, /api/unsubscribe, GET /api/admin/overview
 
-// Root
-app.get('/', (req, res) => {
-  res.json({ service: 'mawinguops-api', status: 'running' });
-});
+if (hasDashboard) {
+  // SPA fallback: any other GET serves the dashboard shell (hash routing).
+  app.get('*', (req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path === '/health' ||
+      req.path === '/ussd'
+    ) {
+      return next();
+    }
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.json({ service: 'mawinguops-api', status: 'running' });
+  });
+}
 
-// 404
+// 404 (unmatched API routes, or non-GET requests)
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
