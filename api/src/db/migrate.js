@@ -11,6 +11,10 @@
 
 const fs = require('fs');
 const path = require('path');
+// Load DATABASE_URL from the repo-root .env (as the server does), so
+// `npm run migrate` works standalone. Real env vars (e.g. on Render) win.
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+require('dotenv').config();
 const { Pool } = require('pg');
 
 async function main() {

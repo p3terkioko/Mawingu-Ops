@@ -27,6 +27,11 @@
  * Idempotent: demo_* rows are deleted and re-inserted on every run.
  */
 
+const path = require('path');
+// Load DATABASE_URL from the repo-root .env (as the server does), so
+// `npm run seed:demo` works standalone. Real env vars win.
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+require('dotenv').config();
 const { Pool } = require('pg');
 
 const VALID_DAYS = 7;
